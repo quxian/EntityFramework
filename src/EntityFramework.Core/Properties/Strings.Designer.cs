@@ -741,19 +741,43 @@ namespace Microsoft.Data.Entity.Internal
         }
 
         /// <summary>
-        /// The property '{property}' cannot be added to entity type '{entityType}' because it has been explicitly ignored.
+        /// The navigation property '{navigation}' cannot be ignored on entity type '{entityType}' because it has been explicitly added.
         /// </summary>
-        public static string PropertyIgnoredExplicitly([CanBeNull] object property, [CanBeNull] object entityType)
+        public static string CannotIgnoreExplicitNavigation([CanBeNull] object navigation, [CanBeNull] object entityType)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("PropertyIgnoredExplicitly", "property", "entityType"), property, entityType);
+            return string.Format(CultureInfo.CurrentCulture, GetString("CannotIgnoreExplicitNavigation", "navigation", "entityType"), navigation, entityType);
         }
 
         /// <summary>
-        /// The entity type '{entityType}' could not be added because it has been explicitly ignored.
+        /// The property '{property}' cannot be ignored on entity type '{entityType}' because it has been explicitly added.
         /// </summary>
-        public static string EntityIgnoredExplicitly([CanBeNull] object entityType)
+        public static string CannotIgnoreExplicitProperty([CanBeNull] object property, [CanBeNull] object entityType)
         {
-            return string.Format(CultureInfo.CurrentCulture, GetString("EntityIgnoredExplicitly", "entityType"), entityType);
+            return string.Format(CultureInfo.CurrentCulture, GetString("CannotIgnoreExplicitProperty", "property", "entityType"), property, entityType);
+        }
+
+        /// <summary>
+        /// The navigation property '{navigation}' cannot be ignored on entity type '{entityType}' because it is inherited from '{baseEntityType}'. 
+        /// </summary>
+        public static string CannotIgnoreInheritedNavigation([CanBeNull] object navigation, [CanBeNull] object entityType, [CanBeNull] object baseEntityType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("CannotIgnoreInheritedNavigation", "navigation", "entityType", "baseEntityType"), navigation, entityType, baseEntityType);
+        }
+
+        /// <summary>
+        /// The property '{property}' cannot be ignored on entity type '{entityType}' because it is inherited from '{baseEntityType}'.
+        /// </summary>
+        public static string CannotIgnoreInheritedProperty([CanBeNull] object property, [CanBeNull] object entityType, [CanBeNull] object baseEntityType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("CannotIgnoreInheritedProperty", "property", "entityType", "baseEntityType"), property, entityType, baseEntityType);
+        }
+
+        /// <summary>
+        /// The entity type '{entityType}' could not be ignored because it has been explicitly added.
+        /// </summary>
+        public static string CannotIgnoreExplicitEntityType([CanBeNull] object entityType)
+        {
+            return string.Format(CultureInfo.CurrentCulture, GetString("CannotIgnoreExplicitEntityType", "entityType"), entityType);
         }
 
         /// <summary>
@@ -770,14 +794,6 @@ namespace Microsoft.Data.Entity.Internal
         public static string ArgumentPropertyNull([CanBeNull] object property, [CanBeNull] object argument)
         {
             return string.Format(CultureInfo.CurrentCulture, GetString("ArgumentPropertyNull", "property", "argument"), property, argument);
-        }
-
-        /// <summary>
-        /// The navigation property '{navigation}' cannot be added to entity type '{entityType}' because it has been explicitly ignored.
-        /// </summary>
-        public static string NavigationIgnoredExplicitly([CanBeNull] object navigation, [CanBeNull] object entityType)
-        {
-            return string.Format(CultureInfo.CurrentCulture, GetString("NavigationIgnoredExplicitly", "navigation", "entityType"), navigation, entityType);
         }
 
         /// <summary>

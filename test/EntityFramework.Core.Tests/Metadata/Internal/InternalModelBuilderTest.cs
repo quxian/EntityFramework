@@ -66,9 +66,11 @@ namespace Microsoft.Data.Entity.Metadata.Internal.Test
             Assert.True(modelBuilder.Ignore(typeof(Customer).FullName, ConfigurationSource.Explicit));
             Assert.Null(modelBuilder.Entity(typeof(Customer).FullName, ConfigurationSource.DataAnnotation));
 
-            Assert.Equal(Strings.EntityIgnoredExplicitly(typeof(Customer).FullName),
+            Assert.NotNull(modelBuilder.Entity(typeof(Customer).FullName, ConfigurationSource.Explicit));
+
+            Assert.Equal(Strings.CannotIgnoreExplicitEntityType(typeof(Customer).FullName),
                 Assert.Throws<InvalidOperationException>(() =>
-                    Assert.Null(modelBuilder.Entity(typeof(Customer).FullName, ConfigurationSource.Explicit))).Message);
+                    Assert.NotNull(modelBuilder.Ignore(typeof(Customer).FullName, ConfigurationSource.Explicit))).Message);
         }
 
         [Fact]
@@ -102,7 +104,7 @@ namespace Microsoft.Data.Entity.Metadata.Internal.Test
         }
 
         [Fact]
-        public void Can_ignore_existing_entity_type_using_entity_clr_type_explicitly()
+        public void Cannot_ignore_existing_entity_type_using_entity_clr_type()
         {
             var model = new Model();
             var entityType = model.AddEntityType(typeof(Customer));
@@ -111,16 +113,15 @@ namespace Microsoft.Data.Entity.Metadata.Internal.Test
             Assert.False(modelBuilder.Ignore(typeof(Customer), ConfigurationSource.DataAnnotation));
             Assert.NotNull(model.FindEntityType(typeof(Customer)));
 
-            Assert.True(modelBuilder.Ignore(typeof(Customer), ConfigurationSource.Explicit));
-            Assert.Null(model.FindEntityType(typeof(Customer)));
-
-            Assert.Equal(Strings.EntityIgnoredExplicitly(typeof(Customer).FullName),
+            Assert.Equal(Strings.CannotIgnoreExplicitEntityType(typeof(Customer).FullName),
                 Assert.Throws<InvalidOperationException>(() =>
-                    modelBuilder.Entity(typeof(Customer), ConfigurationSource.Explicit)).Message);
+                    Assert.NotNull(modelBuilder.Ignore(typeof(Customer), ConfigurationSource.Explicit))).Message);
+
+            Assert.NotNull(model.FindEntityType(typeof(Customer)));
         }
 
         [Fact]
-        public void Can_ignore_existing_entity_type_using_entity_type_name_explicitly()
+        public void Cannot_ignore_existing_entity_type_using_entity_type_name()
         {
             var model = new Model();
             var entityType = model.AddEntityType(typeof(Customer).FullName);
@@ -129,13 +130,12 @@ namespace Microsoft.Data.Entity.Metadata.Internal.Test
             Assert.Same(entityType, modelBuilder.Entity(typeof(Customer).FullName, ConfigurationSource.Convention).Metadata);
             Assert.False(modelBuilder.Ignore(typeof(Customer).FullName, ConfigurationSource.DataAnnotation));
             Assert.NotNull(model.FindEntityType(typeof(Customer).FullName));
-
-            Assert.True(modelBuilder.Ignore(typeof(Customer).FullName, ConfigurationSource.Explicit));
-            Assert.Null(model.FindEntityType(typeof(Customer).FullName));
-
-            Assert.Equal(Strings.EntityIgnoredExplicitly(typeof(Customer).FullName),
+            
+            Assert.Equal(Strings.CannotIgnoreExplicitEntityType(typeof(Customer).FullName),
                 Assert.Throws<InvalidOperationException>(() =>
-                    modelBuilder.Entity(typeof(Customer).FullName, ConfigurationSource.Explicit)).Message);
+                    Assert.NotNull(modelBuilder.Ignore(typeof(Customer).FullName, ConfigurationSource.Explicit))).Message);
+
+            Assert.NotNull(model.FindEntityType(typeof(Customer).FullName));
         }
 
         [Fact]

@@ -84,11 +84,6 @@ namespace Microsoft.Data.Entity.Metadata.Internal
                     return false;
                 }
 
-                if (ignoredConfigurationSource == ConfigurationSource.Explicit)
-                {
-                    throw new InvalidOperationException(Strings.EntityIgnoredExplicitly(name));
-                }
-
                 _ignoredEntityTypeNames.Value.Remove(name);
             }
 
@@ -112,8 +107,12 @@ namespace Microsoft.Data.Entity.Metadata.Internal
             var entityType = Metadata.FindEntityType(name);
             if (entityType != null)
             {
-                if (!Remove(entityType, configurationSource, canOverrideSameSource: true))
+                if (!Remove(entityType, configurationSource, canOverrideSameSource: false))
                 {
+                    if (configurationSource == ConfigurationSource.Explicit)
+                    {
+                        throw new InvalidOperationException(Strings.CannotIgnoreExplicitEntityType(name));
+                    }
                     return false;
                 }
 
