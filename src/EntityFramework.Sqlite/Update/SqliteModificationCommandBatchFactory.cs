@@ -4,20 +4,25 @@
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Metadata;
+using Microsoft.Data.Entity.Storage;
 using Microsoft.Data.Entity.Update;
 
 namespace Microsoft.Data.Entity.Sqlite.Update
 {
     public class SqliteModificationCommandBatchFactory : ModificationCommandBatchFactory
     {
-        public SqliteModificationCommandBatchFactory([NotNull] IUpdateSqlGenerator sqlGenerator)
-            : base(sqlGenerator)
+        public SqliteModificationCommandBatchFactory(
+            [NotNull] IUpdateSqlGenerator sqlGenerator,
+            [NotNull] IRelationalCommandBuilderFactory commandBuilderFactory)
+            : base(sqlGenerator, commandBuilderFactory)
         {
         }
 
         public override ModificationCommandBatch Create(
             IDbContextOptions options,
             IRelationalMetadataExtensionProvider metadataExtensionProvider)
-            => new SingularModificationCommandBatch(UpdateSqlGenerator);
+            => new SingularModificationCommandBatch(
+                UpdateSqlGenerator,
+                RelationalCommandBuilderFactory);
     }
 }

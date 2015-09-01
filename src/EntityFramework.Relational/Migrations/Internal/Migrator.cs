@@ -23,7 +23,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
         private readonly IHistoryRepository _historyRepository;
         private readonly IRelationalDatabaseCreator _databaseCreator;
         private readonly IMigrationsSqlGenerator _sqlGenerator;
-        private readonly ISqlStatementExecutor _executor;
+        private readonly IRelationalCommandBuilderFactory _commandBuilderFactory;
         private readonly IRelationalConnection _connection;
         private readonly IUpdateSqlGenerator _sql;
         private readonly LazyRef<ILogger> _logger;
@@ -33,7 +33,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
             [NotNull] IHistoryRepository historyRepository,
             [NotNull] IDatabaseCreator databaseCreator,
             [NotNull] IMigrationsSqlGenerator sqlGenerator,
-            [NotNull] ISqlStatementExecutor executor,
+            [NotNull] IRelationalCommandBuilderFactory commandBuilderFactory,
             [NotNull] IRelationalConnection connection,
             [NotNull] IUpdateSqlGenerator sql,
             [NotNull] ILoggerFactory loggerFactory)
@@ -42,7 +42,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
             Check.NotNull(historyRepository, nameof(historyRepository));
             Check.NotNull(databaseCreator, nameof(databaseCreator));
             Check.NotNull(sqlGenerator, nameof(sqlGenerator));
-            Check.NotNull(executor, nameof(executor));
+            Check.NotNull(commandBuilderFactory, nameof(commandBuilderFactory));
             Check.NotNull(connection, nameof(connection));
             Check.NotNull(sql, nameof(sql));
             Check.NotNull(loggerFactory, nameof(loggerFactory));
@@ -51,7 +51,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
             _historyRepository = historyRepository;
             _databaseCreator = (IRelationalDatabaseCreator)databaseCreator;
             _sqlGenerator = sqlGenerator;
-            _executor = executor;
+            _commandBuilderFactory = commandBuilderFactory;
             _connection = connection;
             _sql = sql;
             _logger = new LazyRef<ILogger>(loggerFactory.CreateLogger<Migrator>);
@@ -69,10 +69,17 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     _databaseCreator.Create();
                 }
 
-                Execute(new[] { new RelationalCommand(_historyRepository.GetCreateScript()) });
+                Execute(new[]
+                    {
+                        _commandBuilderFactory
+                            .Create()
+                            .Append(_historyRepository.GetCreateScript())
+                            .BuildRelationalCommand()
+                    });
             }
 
             var commands = GetMigrationCommands(_historyRepository.GetAppliedMigrations(), targetMigration);
+
             foreach (var command in commands)
             {
                 Execute(command());
@@ -93,8 +100,13 @@ namespace Microsoft.Data.Entity.Migrations.Internal
                     await _databaseCreator.CreateAsync(cancellationToken);
                 }
 
-                await ExecuteAsync(
-                    new[] { new RelationalCommand(_historyRepository.GetCreateScript()) },
+                await ExecuteAsync(new[]
+                    {
+                        _commandBuilderFactory
+                            .Create()
+                            .Append(_historyRepository.GetCreateScript())
+                            .BuildRelationalCommand()
+                    },
                     cancellationToken);
             }
 
@@ -107,7 +119,7 @@ namespace Microsoft.Data.Entity.Migrations.Internal
             }
         }
 
-        private IEnumerable<Func<IReadOnlyList<RelationalCommand>>> GetMigrationCommands(
+        private IEnumerable<Func<IReadOnlyList<IRelationalCommand>>> GetMigrationCommands(
             IReadOnlyList<HistoryRow> appliedMigrationEntries,
             string targetMigration = null)
         {
@@ -296,50 +308,81 @@ namespace Microsoft.Data.Entity.Migrations.Internal
             return builder.ToString();
         }
 
-        protected virtual IReadOnlyList<RelationalCommand> GenerateUpSql([NotNull] Migration migration)
+        protected virtual IReadOnlyList<IRelationalCommand> GenerateUpSql([NotNull] Migration migration)
         {
             Check.NotNull(migration, nameof(migration));
 
-            var commands = new List<RelationalCommand>();
+            var commands = new List<IRelationalCommand>();
             commands.AddRange(_sqlGenerator.Generate(migration.UpOperations, migration.TargetModel));
             commands.Add(
-                new RelationalCommand(
-                    _historyRepository.GetInsertScript(new HistoryRow(migration.GetId(), ProductInfo.GetVersion()))));
+                _commandBuilderFactory
+                    .Create()
+                    .Append(_historyRepository.GetInsertScript(new HistoryRow(migration.GetId(), ProductInfo.GetVersion())))
+                    .BuildRelationalCommand());
 
             return commands;
         }
 
-        protected virtual IReadOnlyList<RelationalCommand> GenerateDownSql(
+        protected virtual IReadOnlyList<IRelationalCommand> GenerateDownSql(
             [NotNull] Migration migration,
             [CanBeNull] Migration previousMigration)
         {
             Check.NotNull(migration, nameof(migration));
 
-            var commands = new List<RelationalCommand>();
+            var commands = new List<IRelationalCommand>();
             commands.AddRange(_sqlGenerator.Generate(migration.DownOperations, previousMigration?.TargetModel));
-            commands.Add(new RelationalCommand(_historyRepository.GetDeleteScript(migration.GetId())));
+            commands.Add(
+                _commandBuilderFactory
+                    .Create()
+                    .Append(_historyRepository.GetDeleteScript(migration.GetId()))
+                    .BuildRelationalCommand());
 
             return commands;
         }
 
-        private void Execute(IEnumerable<RelationalCommand> relationalCommands)
+        private void Execute(IEnumerable<IRelationalCommand> relationalCommands)
         {
-            using (var transaction = _connection.BeginTransaction())
+            _connection.Open();
+
+            try
             {
-                _executor.ExecuteNonQuery(_connection, relationalCommands);
-                transaction.Commit();
+                using (var transaction = _connection.BeginTransaction())
+                {
+                    foreach (var command in relationalCommands)
+                    {
+                        command.ExecuteNonQuery(_connection);
+                    }
+
+                    transaction.Commit();
+                }
+            }
+            finally
+            {
+                _connection.Close();
             }
         }
 
         private async Task ExecuteAsync(
-            IEnumerable<RelationalCommand> relationalCommands,
+            IEnumerable<IRelationalCommand> relationalCommands,
             CancellationToken cancellationToken = default(CancellationToken))
         {
+            await _connection.OpenAsync(cancellationToken);
 
-            using (var transaction = await _connection.BeginTransactionAsync(cancellationToken))
+            try
             {
-                await _executor.ExecuteNonQueryAsync(_connection, relationalCommands, cancellationToken);
-                transaction.Commit();
+                using (var transaction = await _connection.BeginTransactionAsync(cancellationToken))
+                {
+                    foreach (var command in relationalCommands)
+                    {
+                        await command.ExecuteNonQueryAsync(_connection, cancellationToken);
+                    }
+
+                    transaction.Commit();
+                }
+            }
+            finally
+            {
+                _connection.Close();
             }
         }
     }

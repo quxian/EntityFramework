@@ -16,18 +16,19 @@ namespace Microsoft.Data.Entity.Sqlite
 {
     public class SqliteDatabaseConnection : RelationalConnection
     {
-        private readonly IRelationalTypeMapper _typeMapper;
+        private readonly IRelationalCommandBuilderFactory _relationalCommandBuilderFactory;
         private readonly bool _enforceForeignKeys = true;
+        private int _openedCount;
 
         public SqliteDatabaseConnection(
+            [NotNull] IRelationalCommandBuilderFactory relationalCommandBuilderFactory,
             [NotNull] IDbContextOptions options,
-            [NotNull] ILoggerFactory loggerFactory,
-            [NotNull] IRelationalTypeMapper typeMapper)
+            [NotNull] ILoggerFactory loggerFactory)
             : base(options, loggerFactory)
         {
-            Check.NotNull(typeMapper, nameof(typeMapper));
+            Check.NotNull(relationalCommandBuilderFactory, nameof(relationalCommandBuilderFactory));
 
-            _typeMapper = typeMapper;
+            _relationalCommandBuilderFactory = relationalCommandBuilderFactory;
 
             var optionsExtension = options.Extensions.OfType<SqliteOptionsExtension>().FirstOrDefault();
             if (optionsExtension != null)
@@ -43,13 +44,32 @@ namespace Microsoft.Data.Entity.Sqlite
         public override void Open()
         {
             base.Open();
-            EnableForeignKeys();
+
+            _openedCount++;
+
+            if (_openedCount == 1)
+            {
+                EnableForeignKeys();
+            }
         }
 
         public override async Task OpenAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
             await base.OpenAsync(cancellationToken);
-            EnableForeignKeys();
+
+            _openedCount++;
+
+            if (_openedCount == 1)
+            {
+                EnableForeignKeys();
+            }
+        }
+
+        public override void Close()
+        {
+            base.Close();
+
+            _openedCount--;
         }
 
         private void EnableForeignKeys()
@@ -59,8 +79,11 @@ namespace Microsoft.Data.Entity.Sqlite
                 return;
             }
 
-            var command = new RelationalCommand("PRAGMA foreign_keys=ON;");
-            command.CreateDbCommand(this, _typeMapper).ExecuteNonQuery();
+            _relationalCommandBuilderFactory
+                .Create()
+                .Append("PRAGMA foreign_keys=ON;")
+                .BuildRelationalCommand()
+                .ExecuteNonQuery(this);
         }
     }
 }

@@ -2,25 +2,39 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Linq;
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Internal;
 using Microsoft.Data.Entity.Utilities;
+using Microsoft.Framework.Logging;
 
 namespace Microsoft.Data.Entity.Storage
 {
-    public class RelationalCommandBuilder
+    public class RelationalCommandBuilder : IRelationalCommandBuilder
     {
+        private readonly ILoggerFactory _loggerFactory;
+        private readonly IRelationalTypeMapper _typeMapper;
+
+        public RelationalCommandBuilder(
+            [NotNull] ILoggerFactory loggerFactory,
+            [NotNull] IRelationalTypeMapper typeMapper)
+        {
+            Check.NotNull(loggerFactory, nameof(loggerFactory));
+            Check.NotNull(typeMapper, nameof(typeMapper));
+
+            _loggerFactory = loggerFactory;
+            _typeMapper = typeMapper;
+        }
+
         private readonly IndentedStringBuilder _stringBuilder = new IndentedStringBuilder();
 
-        public virtual RelationalCommandBuilder AppendLine()
+        public virtual IRelationalCommandBuilder AppendLine()
         {
             _stringBuilder.AppendLine();
 
             return this;
         }
 
-        public virtual RelationalCommandBuilder Append([NotNull] object o)
+        public virtual IRelationalCommandBuilder Append([NotNull] object o)
         {
             Check.NotNull(o, nameof(o));
 
@@ -29,7 +43,7 @@ namespace Microsoft.Data.Entity.Storage
             return this;
         }
 
-        public virtual RelationalCommandBuilder AppendLine([NotNull] object o)
+        public virtual IRelationalCommandBuilder AppendLine([NotNull] object o)
         {
             Check.NotNull(o, nameof(o));
 
@@ -38,7 +52,7 @@ namespace Microsoft.Data.Entity.Storage
             return this;
         }
 
-        public virtual RelationalCommandBuilder AppendLines([NotNull] object o)
+        public virtual IRelationalCommandBuilder AppendLines([NotNull] object o)
         {
             Check.NotNull(o, nameof(o));
 
@@ -47,10 +61,12 @@ namespace Microsoft.Data.Entity.Storage
             return this;
         }
 
-        public virtual RelationalCommand RelationalCommand
+        public virtual IRelationalCommand BuildRelationalCommand()
             => new RelationalCommand(
+                _loggerFactory,
+                _typeMapper,
                 _stringBuilder.ToString(),
-                RelationalParameterList.RelationalParameters.ToArray());
+                RelationalParameterList.RelationalParameters);
 
         public virtual RelationalParameterList RelationalParameterList { get; } = new RelationalParameterList();
 
@@ -59,21 +75,21 @@ namespace Microsoft.Data.Entity.Storage
 
         public virtual int Length => _stringBuilder.Length;
 
-        public virtual RelationalCommandBuilder Clear()
+        public virtual IRelationalCommandBuilder Clear()
         {
             _stringBuilder.Clear();
 
             return this;
         }
 
-        public virtual RelationalCommandBuilder IncrementIndent()
+        public virtual IRelationalCommandBuilder IncrementIndent()
         {
             _stringBuilder.IncrementIndent();
 
             return this;
         }
 
-        public virtual RelationalCommandBuilder DecrementIndent()
+        public virtual IRelationalCommandBuilder DecrementIndent()
         {
             _stringBuilder.DecrementIndent();
 

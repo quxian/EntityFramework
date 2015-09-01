@@ -5,7 +5,9 @@ using System;
 using Microsoft.Data.Entity.Migrations.Operations;
 using Microsoft.Data.Entity.Sqlite;
 using Microsoft.Data.Entity.Sqlite.Metadata;
+using Microsoft.Data.Entity.Storage;
 using Microsoft.Data.Entity.Update;
+using Microsoft.Framework.Logging;
 using Xunit;
 
 namespace Microsoft.Data.Entity.Migrations
@@ -13,10 +15,20 @@ namespace Microsoft.Data.Entity.Migrations
     public class SqliteMigrationSqlGeneratorTest : MigrationSqlGeneratorTestBase
     {
         protected override IMigrationsSqlGenerator SqlGenerator
-            => new SqliteMigrationsSqlGenerator(
-                new SqliteUpdateSqlGenerator(),
-                new SqliteTypeMapper(),
-                new SqliteMetadataExtensionProvider());
+        {
+            get
+            {
+                var typeMapper = new SqliteTypeMapper();
+
+                return new SqliteMigrationsSqlGenerator(
+                    new SqliteUpdateSqlGenerator(),
+                    new RelationalCommandBuilderFactory(
+                        new LoggerFactory(),
+                        typeMapper),
+                    typeMapper,
+                    new SqliteMetadataExtensionProvider());
+            }
+        }
 
         [Fact]
         public virtual void It_lifts_foreign_key_additions()
